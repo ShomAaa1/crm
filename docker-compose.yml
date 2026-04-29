@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: autodetail_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-autodetail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-autodetail}
+      POSTGRES_DB: ${POSTGRES_DB:-autodetail}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autodetail} -d ${POSTGRES_DB:-autodetail}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: autodetail_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: autodetail_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://autodetail:autodetail@postgres:5432/autodetail}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      ENV: ${ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@autodetail.local}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  frontend:
+    build: ./frontend
+    container_name: autodetail_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  pg_data:
+  redis_data:
