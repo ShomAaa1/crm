@@ -8,7 +8,7 @@ from sqlalchemy import text
 from app.config import settings
 from app.database import engine
 from app.middleware.problem import register_exception_handlers
-from app.routers import auth, health
+from app.routers import auth, health, users
 from app.utils.redis import get_redis
 
 logging.basicConfig(level=settings.log_level)
@@ -61,3 +61,4 @@ API_V1 = "/api/v1"
 
 app.include_router(health.router, prefix=API_V1)
 app.include_router(auth.router, prefix=API_V1)
+app.include_router(users.router, prefix=API_V1)

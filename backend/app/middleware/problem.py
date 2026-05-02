@@ -15,6 +15,7 @@ import logging
 from typing import Any
 
 from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -93,7 +94,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             title="Validation error",
             detail="Запрос содержит ошибки валидации",
-            extras={"errors": exc.errors()},
+            extras={"errors": jsonable_encoder(exc.errors())},
         )
 
     @app.exception_handler(IntegrityError)
