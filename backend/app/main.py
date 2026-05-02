@@ -7,7 +7,8 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database import engine
-from app.routers import health
+from app.middleware.problem import register_exception_handlers
+from app.routers import auth, health
 from app.utils.redis import get_redis
 
 logging.basicConfig(level=settings.log_level)
@@ -54,6 +55,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+register_exception_handlers(app)
+
 API_V1 = "/api/v1"
 
 app.include_router(health.router, prefix=API_V1)
+app.include_router(auth.router, prefix=API_V1)
