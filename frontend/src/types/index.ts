@@ -32,3 +32,44 @@ export interface ProblemDetail {
   instance?: string;
   errors?: Array<{ loc: (string | number)[]; msg: string; type: string }>;
 }
+
+// === Каталог ===
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+}
+
+export interface CategoryTreeNode extends Category {
+  children: CategoryTreeNode[];
+}
+
+export interface Part {
+  id: string;
+  article: string;
+  name: string;
+  description: string | null;
+  manufacturer: string | null;
+  category_id: string | null;
+  price: string; // Decimal приходит строкой
+  stock_quantity: number;
+  unit: string;
+  is_active: boolean;
+}
+
+export interface PriceHistoryEntry {
+  id: string;
+  old_price: string | null;
+  new_price: string;
+  changed_by: string | null;
+  changed_at: string;
+}
+
+export interface CsvImportResult {
+  created: number;
+  updated: number;
+  price_changes: number;
+  errors: Array<{ line: number; reason: string }>;
+}

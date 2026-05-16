@@ -5,7 +5,11 @@ import { AppShell } from "@/components/AppShell";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoginPage } from "@/pages/LoginPage";
 import { HomePage } from "@/pages/HomePage";
+import { CatalogPage } from "@/pages/catalog/CatalogPage";
+import { PartDetailsPage } from "@/pages/catalog/PartDetailsPage";
 import { UsersPage } from "@/pages/admin/UsersPage";
+import { CategoriesPage } from "@/pages/admin/CategoriesPage";
+import { PartsPage } from "@/pages/admin/PartsPage";
 import { useAuthStore } from "@/store/auth";
 
 export default function App() {
@@ -36,6 +40,30 @@ export default function App() {
         }
       >
         <Route index element={<HomePage />} />
+
+        {/* Каталог — доступен всем залогиненным */}
+        <Route path="catalog" element={<CatalogPage />} />
+        <Route path="catalog/:id" element={<PartDetailsPage />} />
+
+        {/* Управление каталогом — manager/head/admin */}
+        <Route
+          path="admin/categories"
+          element={
+            <ProtectedRoute roles={["manager", "head", "admin"]}>
+              <CategoriesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/parts"
+          element={
+            <ProtectedRoute roles={["manager", "head", "admin"]}>
+              <PartsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Пользователи — только admin */}
         <Route
           path="admin/users"
           element={

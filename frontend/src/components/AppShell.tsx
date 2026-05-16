@@ -26,6 +26,42 @@ export function AppShell() {
             АвтоДеталь <span className="text-slate-400 font-normal">CRM</span>
           </div>
           <nav className="flex items-center gap-4 text-sm">
+            <NavLink
+              to="/catalog"
+              className={({ isActive }) =>
+                isActive
+                  ? "text-brand-700 font-medium"
+                  : "text-slate-600 hover:text-brand-700"
+              }
+            >
+              Каталог
+            </NavLink>
+            {(user?.role === "manager" ||
+              user?.role === "head" ||
+              user?.role === "admin") && (
+              <>
+                <NavLink
+                  to="/admin/parts"
+                  className={({ isActive }) =>
+                    isActive
+                      ? "text-brand-700 font-medium"
+                      : "text-slate-600 hover:text-brand-700"
+                  }
+                >
+                  Запчасти
+                </NavLink>
+                <NavLink
+                  to="/admin/categories"
+                  className={({ isActive }) =>
+                    isActive
+                      ? "text-brand-700 font-medium"
+                      : "text-slate-600 hover:text-brand-700"
+                  }
+                >
+                  Категории
+                </NavLink>
+              </>
+            )}
             {user?.role === "admin" && (
               <NavLink
                 to="/admin/users"
