@@ -81,6 +81,24 @@ async def count_children(db: AsyncSession, category_id: UUID) -> int:
     return int((await db.execute(q)).scalar_one())
 
 
+async def get_descendant_ids(db: AsyncSession, root_id: UUID) -> list[UUID]:
+    """Возвращает root_id и id всех его потомков (рекурсивно)."""
+    all_cats = await list_categories(db)
+    children_map: dict[UUID, list[UUID]] = {}
+    for c in all_cats:
+        if c.parent_id is not None:
+            children_map.setdefault(c.parent_id, []).append(c.id)
+
+    result: list[UUID] = [root_id]
+    stack: list[UUID] = [root_id]
+    while stack:
+        node = stack.pop()
+        for child in children_map.get(node, []):
+            result.append(child)
+            stack.append(child)
+    return result
+
+
 async def delete_category(db: AsyncSession, category: Category) -> None:
     await db.delete(category)
     await db.flush()

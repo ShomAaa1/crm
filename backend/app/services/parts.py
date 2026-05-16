@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Part, PriceHistory
 from app.schemas.part import PartCreate, PartUpdate
+from app.services import categories as categories_svc
 
 
 async def list_parts(
@@ -26,7 +27,10 @@ async def list_parts(
 ) -> tuple[list[Part], int]:
     base = select(Part)
     if category_id is not None:
-        base = base.where(Part.category_id == category_id)
+        # Включаем сам id и всех потомков — клик по родительской категории
+        # показывает запчасти из всех подкатегорий
+        descendant_ids = await categories_svc.get_descendant_ids(db, category_id)
+        base = base.where(Part.category_id.in_(descendant_ids))
     if search:
         like = f"%{search.lower()}%"
         base = base.where(
