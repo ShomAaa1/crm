@@ -73,3 +73,71 @@ export interface CsvImportResult {
   price_changes: number;
   errors: Array<{ line: number; reason: string }>;
 }
+
+// === Корзина ===
+
+export interface CartItem {
+  id: string;
+  part_id: string;
+  article: string;
+  name: string;
+  manufacturer: string | null;
+  unit: string;
+  price: string;
+  quantity: number;
+  line_total: string;
+  in_stock: boolean;
+  stock_quantity: number;
+}
+
+export interface CartSummary {
+  items: CartItem[];
+  items_count: number;
+  total: string;
+}
+
+// === Заявки ===
+
+export type RequestStatus =
+  | "new"
+  | "in_progress"
+  | "cp_sent"
+  | "accepted"
+  | "rejected"
+  | "revision_needed"
+  | "closed_success"
+  | "closed_fail"
+  | "cancelled";
+
+export interface RequestItem {
+  id: string;
+  part_id: string | null;
+  article: string | null;
+  name: string | null;
+  description: string | null;
+  quantity: number;
+  price_at_moment: string | null;
+  line_total: string | null;
+}
+
+export interface RequestListItem {
+  id: string;
+  request_number: string;
+  status: RequestStatus;
+  client_id: string;
+  client_company: string | null;
+  manager_id: string | null;
+  manager_name: string | null;
+  items_count: number;
+  total: string;
+  comment: string | null;
+  created_at: string;
+  taken_at: string | null;
+  sla_deadline: string | null;
+  closed_at: string | null;
+  sla_overdue: boolean;
+}
+
+export interface RequestDetail extends RequestListItem {
+  items: RequestItem[];
+}

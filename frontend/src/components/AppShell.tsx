@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth";
+import { useCartStore } from "@/store/cart";
 
 const ROLE_LABEL: Record<string, string> = {
   admin: "Администратор",
@@ -8,15 +10,39 @@ const ROLE_LABEL: Record<string, string> = {
   client: "Клиент",
 };
 
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  isActive
+    ? "text-brand-700 font-medium"
+    : "text-slate-600 hover:text-brand-700";
+
 export function AppShell() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const cartSummary = useCartStore((s) => s.summary);
+  const refreshCart = useCartStore((s) => s.refresh);
+  const resetCart = useCartStore((s) => s.reset);
+
   const navigate = useNavigate();
+
+  const isClient = user?.role === "client";
+  const isManagerSide =
+    user?.role === "manager" || user?.role === "head" || user?.role === "admin";
+
+  useEffect(() => {
+    if (isClient) {
+      refreshCart();
+    } else {
+      resetCart();
+    }
+  }, [isClient, refreshCart, resetCart]);
 
   async function handleLogout() {
     await logout();
+    resetCart();
     navigate("/login", { replace: true });
   }
+
+  const cartCount = cartSummary?.items_count ?? 0;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -26,51 +52,42 @@ export function AppShell() {
             АвтоДеталь <span className="text-slate-400 font-normal">CRM</span>
           </div>
           <nav className="flex items-center gap-4 text-sm">
-            <NavLink
-              to="/catalog"
-              className={({ isActive }) =>
-                isActive
-                  ? "text-brand-700 font-medium"
-                  : "text-slate-600 hover:text-brand-700"
-              }
-            >
+            <NavLink to="/catalog" className={navLinkClass}>
               Каталог
             </NavLink>
-            {(user?.role === "manager" ||
-              user?.role === "head" ||
-              user?.role === "admin") && (
+
+            {isClient && (
               <>
-                <NavLink
-                  to="/admin/parts"
-                  className={({ isActive }) =>
-                    isActive
-                      ? "text-brand-700 font-medium"
-                      : "text-slate-600 hover:text-brand-700"
-                  }
-                >
+                <NavLink to="/cart" className={navLinkClass}>
+                  Корзина
+                  {cartCount > 0 && (
+                    <span className="ml-1 inline-flex items-center justify-center bg-brand-600 text-white text-xs rounded-full w-5 h-5">
+                      {cartCount}
+                    </span>
+                  )}
+                </NavLink>
+                <NavLink to="/requests" className={navLinkClass}>
+                  Мои заявки
+                </NavLink>
+              </>
+            )}
+
+            {isManagerSide && (
+              <>
+                <NavLink to="/manager/requests" className={navLinkClass}>
+                  Заявки
+                </NavLink>
+                <NavLink to="/admin/parts" className={navLinkClass}>
                   Запчасти
                 </NavLink>
-                <NavLink
-                  to="/admin/categories"
-                  className={({ isActive }) =>
-                    isActive
-                      ? "text-brand-700 font-medium"
-                      : "text-slate-600 hover:text-brand-700"
-                  }
-                >
+                <NavLink to="/admin/categories" className={navLinkClass}>
                   Категории
                 </NavLink>
               </>
             )}
+
             {user?.role === "admin" && (
-              <NavLink
-                to="/admin/users"
-                className={({ isActive }) =>
-                  isActive
-                    ? "text-brand-700 font-medium"
-                    : "text-slate-600 hover:text-brand-700"
-                }
-              >
+              <NavLink to="/admin/users" className={navLinkClass}>
                 Пользователи
               </NavLink>
             )}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { extractError } from "@/api/client";
 import { getPart } from "@/api/catalog";
+import { AddToCartButton } from "@/components/AddToCartButton";
 import type { Part } from "@/types";
 
 export function PartDetailsPage() {
@@ -62,6 +63,10 @@ export function PartDetailsPage() {
               нет в наличии
             </span>
           )}
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-slate-200">
+          <AddToCartButton partId={part.id} inStock={inStock} />
         </div>
 
         {part.description && (
