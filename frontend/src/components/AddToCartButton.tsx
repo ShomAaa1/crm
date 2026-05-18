@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useCartStore } from "@/store/cart";
 import { useAuthStore } from "@/store/auth";
 import { extractError } from "@/api/client";
@@ -12,6 +13,9 @@ interface Props {
 export function AddToCartButton({ partId, inStock, compact = false }: Props) {
   const user = useAuthStore((s) => s.user);
   const add = useCartStore((s) => s.add);
+  const currentInCart = useCartStore(
+    (s) => s.summary?.items.find((i) => i.part_id === partId)?.quantity ?? 0,
+  );
 
   const [qty, setQty] = useState(1);
   const [adding, setAdding] = useState(false);
@@ -34,6 +38,8 @@ export function AddToCartButton({ partId, inStock, compact = false }: Props) {
     }
   }
 
+  const inCart = currentInCart > 0;
+
   if (compact) {
     return (
       <button
@@ -42,15 +48,32 @@ export function AddToCartButton({ partId, inStock, compact = false }: Props) {
         className="btn-primary text-sm"
         title={inStock ? "Добавить в корзину" : "Нет в наличии"}
       >
-        {okFlash ? "✓" : "+ В корзину"}
+        {okFlash
+          ? "✓"
+          : inCart
+            ? `В корзине: ${currentInCart} +`
+            : "+ В корзину"}
       </button>
     );
   }
 
   return (
     <div className="space-y-2">
+      {inCart && (
+        <div className="flex items-center gap-2 text-sm text-green-800 bg-green-50 border border-green-200 rounded px-3 py-2">
+          <span>
+            Уже в корзине: <span className="font-medium">{currentInCart}</span> шт
+          </span>
+          <Link to="/cart" className="ml-auto text-brand-700 hover:underline">
+            Перейти в корзину →
+          </Link>
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
-        <label className="text-sm text-slate-600">Количество:</label>
+        <label className="text-sm text-slate-600">
+          {inCart ? "Добавить ещё:" : "Количество:"}
+        </label>
         <input
           type="number"
           min={1}
@@ -64,7 +87,13 @@ export function AddToCartButton({ partId, inStock, compact = false }: Props) {
           onClick={onAdd}
           className="btn-primary"
         >
-          {adding ? "Добавляем…" : okFlash ? "✓ Добавлено" : "В корзину"}
+          {adding
+            ? "Добавляем…"
+            : okFlash
+              ? "✓ Добавлено"
+              : inCart
+                ? "Добавить ещё"
+                : "В корзину"}
         </button>
       </div>
       {!inStock && (
