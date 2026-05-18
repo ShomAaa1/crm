@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth";
 import { extractError } from "@/api/client";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export function LoginPage() {
   const user = useAuthStore((s) => s.user);
@@ -57,9 +58,8 @@ export function LoginPage() {
           </div>
           <div>
             <label htmlFor="password" className="label">Пароль</label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}

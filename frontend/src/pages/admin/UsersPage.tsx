@@ -7,6 +7,7 @@ import {
   unblockUser,
   type UserCreateInput,
 } from "@/api/users";
+import { PasswordInput } from "@/components/PasswordInput";
 import type { User, UserRole } from "@/types";
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -258,8 +259,7 @@ function CreateUserDialog({
           </div>
           <div>
             <label className="label">Пароль</label>
-            <input
-              type="password"
+            <PasswordInput
               required
               minLength={8}
               value={form.password}
