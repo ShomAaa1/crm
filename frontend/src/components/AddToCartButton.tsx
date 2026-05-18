@@ -37,7 +37,7 @@ export function AddToCartButton({ partId, inStock, compact = false }: Props) {
   if (compact) {
     return (
       <button
-        disabled={adding || !inStock}
+        disabled={adding || okFlash || !inStock}
         onClick={onAdd}
         className="btn-primary text-sm"
         title={inStock ? "Добавить в корзину" : "Нет в наличии"}
@@ -60,7 +60,7 @@ export function AddToCartButton({ partId, inStock, compact = false }: Props) {
           className="input w-24"
         />
         <button
-          disabled={adding || !inStock}
+          disabled={adding || okFlash || !inStock}
           onClick={onAdd}
           className="btn-primary"
         >
