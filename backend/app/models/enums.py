@@ -29,6 +29,7 @@ class RequestStatus(StrEnum):
     REVISION_NEEDED = "revision_needed"
     CLOSED_SUCCESS = "closed_success"
     CLOSED_FAIL = "closed_fail"
+    CANCELLED = "cancelled"
 
 
 class CPStatus(StrEnum):

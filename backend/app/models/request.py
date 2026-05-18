@@ -1,9 +1,19 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -70,5 +80,8 @@ class RequestItem(Base):
     )
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_at_moment: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )
 
     request: Mapped["Request"] = relationship("Request", back_populates="items")
