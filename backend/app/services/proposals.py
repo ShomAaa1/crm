@@ -218,6 +218,20 @@ async def accept_proposal(
     cp.status = CPStatus.ACCEPTED
     request.status = RequestStatus.ACCEPTED
     await db.flush()
+
+    # Автоматическое создание заказа при принятии КП
+    from app.services import orders as orders_svc
+
+    client = (
+        await db.execute(select(Client).where(Client.id == request.client_id))
+    ).scalar_one_or_none()
+    if client is not None:
+        try:
+            await orders_svc.create_from_proposal(db, cp, client)
+        except ValueError:
+            # если в КП нет позиций — не падаем, просто не создаём заказ
+            pass
+
     return cp
 
 

@@ -54,6 +54,8 @@ class Order(Base, TimestampMixin):
     )
     total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     delivery_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payment_terms: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tracking_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     items: Mapped[list["OrderItem"]] = relationship(
