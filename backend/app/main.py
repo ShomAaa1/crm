@@ -12,7 +12,9 @@ from app.routers import (
     auth,
     cart,
     categories,
+    dashboard,
     health,
+    notifications,
     orders,
     parts,
     proposals,
@@ -78,3 +80,5 @@ app.include_router(cart.router, prefix=API_V1)
 app.include_router(requests.router, prefix=API_V1)
 app.include_router(proposals.router, prefix=API_V1)
 app.include_router(orders.router, prefix=API_V1)
+app.include_router(notifications.router, prefix=API_V1)
+app.include_router(dashboard.router, prefix=API_V1)

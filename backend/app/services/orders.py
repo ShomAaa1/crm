@@ -29,7 +29,8 @@ from app.models import (
     Part,
     User,
 )
-from app.models.enums import OrderStatus, RequestStatus, UserRole
+from app.models.enums import NotificationType, OrderStatus, RequestStatus, UserRole
+from app.services import notifications as notif_svc
 
 ALLOWED_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
     OrderStatus.CREATED: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
@@ -203,6 +204,33 @@ async def change_status(
         await _propagate_to_request(db, order, RequestStatus.CLOSED_FAIL)
 
     await db.flush()
+
+    # Уведомление клиенту: статус заказа изменился
+    client = (
+        await db.execute(select(Client).where(Client.id == order.client_id))
+    ).scalar_one_or_none()
+    if client:
+        status_labels = {
+            OrderStatus.CONFIRMED: "подтверждён",
+            OrderStatus.SHIPPED: "отгружен",
+            OrderStatus.DELIVERED: "доставлен",
+            OrderStatus.CANCELLED: "отменён",
+        }
+        label = status_labels.get(new_status, new_status.value)
+        await notif_svc.create(
+            db,
+            user_id=client.user_id,
+            title=f"Заказ {order.order_number}: {label}",
+            message=(
+                f"Трек-номер: {order.tracking_number}"
+                if new_status == OrderStatus.SHIPPED and order.tracking_number
+                else None
+            ),
+            n_type=NotificationType.INFO if new_status != OrderStatus.CANCELLED else NotificationType.WARNING,
+            related_entity_type="order",
+            related_entity_id=order.id,
+        )
+
     return order
 
 

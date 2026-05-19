@@ -23,8 +23,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Client, Manager, Part, Request, RequestItem, User
-from app.models.enums import RequestStatus, UserRole
+from app.models.enums import NotificationType, RequestStatus, UserRole
 from app.services import cart as cart_svc
+from app.services import notifications as notif_svc
 
 SLA_HOURS_FOR_NEW = 24
 
@@ -103,6 +104,24 @@ async def create_from_cart(
 
     await cart_svc.clear_cart(db, client.id)
     await db.flush()
+
+    # Уведомления: всем менеджерам о новой заявке (для распределения)
+    managers = (
+        await db.execute(
+            select(Manager.user_id).where(Manager.is_available == True)  # noqa: E712
+        )
+    ).scalars().all()
+    for mgr_user_id in managers:
+        await notif_svc.create(
+            db,
+            user_id=mgr_user_id,
+            title=f"Новая заявка {request.request_number}",
+            message=f"Клиент: {client.company_name}. Сумма: см. детали.",
+            n_type=NotificationType.INFO,
+            related_entity_type="request",
+            related_entity_id=request.id,
+        )
+
     return request
 
 
@@ -246,6 +265,25 @@ async def take_to_work(
     request.manager_id = manager.id
     request.taken_at = datetime.now(timezone.utc)
     await db.flush()
+
+    # Уведомление клиенту: заявка взята в работу
+    client = (
+        await db.execute(select(Client).where(Client.id == request.client_id))
+    ).scalar_one_or_none()
+    if client:
+        manager_user = (
+            await db.execute(select(User).where(User.id == manager.user_id))
+        ).scalar_one_or_none()
+        await notif_svc.create(
+            db,
+            user_id=client.user_id,
+            title=f"Заявка {request.request_number} взята в работу",
+            message=f"Ваш менеджер: {manager_user.full_name if manager_user else ''}",
+            n_type=NotificationType.INFO,
+            related_entity_type="request",
+            related_entity_id=request.id,
+        )
+
     return request
 
 

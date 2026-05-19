@@ -29,7 +29,8 @@ from app.models import (
     RequestItem,
     User,
 )
-from app.models.enums import CPStatus, RequestStatus
+from app.models.enums import CPStatus, NotificationType, RequestStatus
+from app.services import notifications as notif_svc
 
 
 def _round(value: Decimal) -> Decimal:
@@ -207,6 +208,21 @@ async def send_proposal(
     cp.sent_at = datetime.now(timezone.utc)
     request.status = RequestStatus.CP_SENT
     await db.flush()
+
+    # Уведомление клиенту
+    client = (
+        await db.execute(select(Client).where(Client.id == request.client_id))
+    ).scalar_one_or_none()
+    if client:
+        await notif_svc.create(
+            db,
+            user_id=client.user_id,
+            title=f"Получено коммерческое предложение {cp.cp_number}",
+            message=f"По заявке {request.request_number}. Сумма: {cp.total_amount} ₽",
+            n_type=NotificationType.INFO,
+            related_entity_type="cp",
+            related_entity_id=cp.id,
+        )
     return cp
 
 
@@ -232,6 +248,21 @@ async def accept_proposal(
             # если в КП нет позиций — не падаем, просто не создаём заказ
             pass
 
+    # Уведомление менеджеру: КП принято
+    manager = (
+        await db.execute(select(Manager).where(Manager.id == cp.manager_id))
+    ).scalar_one_or_none()
+    if manager:
+        await notif_svc.create(
+            db,
+            user_id=manager.user_id,
+            title=f"КП {cp.cp_number} принято клиентом",
+            message=f"По заявке {request.request_number}. Создан заказ.",
+            n_type=NotificationType.INFO,
+            related_entity_type="cp",
+            related_entity_id=cp.id,
+        )
+
     return cp
 
 
@@ -243,6 +274,20 @@ async def reject_proposal(
     cp.status = CPStatus.REJECTED
     request.status = RequestStatus.REJECTED
     await db.flush()
+
+    manager = (
+        await db.execute(select(Manager).where(Manager.id == cp.manager_id))
+    ).scalar_one_or_none()
+    if manager:
+        await notif_svc.create(
+            db,
+            user_id=manager.user_id,
+            title=f"КП {cp.cp_number} отклонено",
+            message=f"По заявке {request.request_number}",
+            n_type=NotificationType.WARNING,
+            related_entity_type="cp",
+            related_entity_id=cp.id,
+        )
     return cp
 
 
@@ -257,6 +302,20 @@ async def revision_request(
     cp.sent_at = None
     request.status = RequestStatus.REVISION_NEEDED
     await db.flush()
+
+    manager = (
+        await db.execute(select(Manager).where(Manager.id == cp.manager_id))
+    ).scalar_one_or_none()
+    if manager:
+        await notif_svc.create(
+            db,
+            user_id=manager.user_id,
+            title=f"Запрос пересчёта по КП {cp.cp_number}",
+            message=f"Клиент попросил пересчитать КП по заявке {request.request_number}",
+            n_type=NotificationType.WARNING,
+            related_entity_type="cp",
+            related_entity_id=cp.id,
+        )
     return cp
 
 
