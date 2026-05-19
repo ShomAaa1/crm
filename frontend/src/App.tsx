@@ -16,6 +16,8 @@ import { RequestDetailsPage } from "@/pages/requests/RequestDetailsPage";
 import { ManagerRequestsPage } from "@/pages/manager/RequestsPage";
 import { ProposalDetailsPage } from "@/pages/proposals/ProposalDetailsPage";
 import { ProposalsListPage } from "@/pages/proposals/ProposalsListPage";
+import { OrderDetailsPage } from "@/pages/orders/OrderDetailsPage";
+import { OrdersListPage } from "@/pages/orders/OrdersListPage";
 import { useAuthStore } from "@/store/auth";
 
 export default function App() {
@@ -86,6 +88,10 @@ export default function App() {
         {/* Коммерческие предложения */}
         <Route path="proposals" element={<ProposalsListPage />} />
         <Route path="proposals/:id" element={<ProposalDetailsPage />} />
+
+        {/* Заказы */}
+        <Route path="orders" element={<OrdersListPage />} />
+        <Route path="orders/:id" element={<OrderDetailsPage />} />
 
         {/* Управление каталогом — manager/head/admin */}
         <Route

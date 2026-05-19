@@ -178,3 +178,45 @@ export interface CPDetail extends CPListItem {
   delivery_terms: string | null;
   items: CPItem[];
 }
+
+// === Заказы ===
+
+export type OrderStatus =
+  | "created"
+  | "confirmed"
+  | "shipped"
+  | "delivered"
+  | "cancelled";
+
+export interface OrderItem {
+  id: string;
+  part_id: string;
+  article: string | null;
+  name: string | null;
+  quantity: number;
+  unit_price: string;
+  total_price: string;
+}
+
+export interface OrderListItem {
+  id: string;
+  order_number: string;
+  status: OrderStatus;
+  client_id: string;
+  client_company: string | null;
+  manager_id: string | null;
+  manager_name: string | null;
+  cp_id: string | null;
+  cp_number: string | null;
+  items_count: number;
+  total_amount: string;
+  delivery_address: string | null;
+  tracking_number: string | null;
+  created_at: string;
+  delivered_at: string | null;
+}
+
+export interface OrderDetail extends OrderListItem {
+  payment_terms: string | null;
+  items: OrderItem[];
+}

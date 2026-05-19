@@ -12,15 +12,17 @@ import {
   updateProposal,
   type CPItemUpdate,
 } from "@/api/proposals";
+import { getOrderByCp, ORDER_STATUS_LABEL } from "@/api/orders";
 import { extractError } from "@/api/client";
 import { useAuthStore } from "@/store/auth";
-import type { CPDetail } from "@/types";
+import type { CPDetail, OrderDetail } from "@/types";
 
 export function ProposalDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
 
   const [data, setData] = useState<CPDetail | null>(null);
+  const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,6 +40,12 @@ export function ProposalDetailsPage() {
     try {
       const cp = await getProposal(id);
       applyData(cp);
+      try {
+        const o = await getOrderByCp(cp.id);
+        setOrder(o);
+      } catch {
+        setOrder(null);
+      }
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -169,6 +177,31 @@ export function ProposalDetailsPage() {
       {error && (
         <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {order && (
+        <div className="card p-4 flex items-center justify-between bg-green-50/50 border-green-200">
+          <div>
+            <div className="text-sm text-slate-600 mb-1">
+              По принятому КП создан заказ
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/orders/${order.id}`}
+                className="font-mono text-brand-700 hover:underline"
+              >
+                {order.order_number}
+              </Link>
+              <span className="text-xs text-slate-500">·</span>
+              <span className="text-sm">{ORDER_STATUS_LABEL[order.status]}</span>
+              <span className="text-xs text-slate-500">·</span>
+              <span className="text-sm font-medium">{order.total_amount} ₽</span>
+            </div>
+          </div>
+          <Link to={`/orders/${order.id}`} className="btn-secondary">
+            Открыть заказ →
+          </Link>
         </div>
       )}
 

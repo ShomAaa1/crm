@@ -72,6 +72,9 @@ export function AppShell() {
                 <NavLink to="/proposals" className={navLinkClass}>
                   Мои КП
                 </NavLink>
+                <NavLink to="/orders" className={navLinkClass}>
+                  Мои заказы
+                </NavLink>
               </>
             )}
 
@@ -82,6 +85,9 @@ export function AppShell() {
                 </NavLink>
                 <NavLink to="/proposals" className={navLinkClass}>
                   КП
+                </NavLink>
+                <NavLink to="/orders" className={navLinkClass}>
+                  Заказы
                 </NavLink>
                 <NavLink to="/admin/parts" className={navLinkClass}>
                   Запчасти
