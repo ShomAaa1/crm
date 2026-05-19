@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth";
 import { useCartStore } from "@/store/cart";
+import { NotificationsBell } from "@/components/NotificationsBell";
 
 const ROLE_LABEL: Record<string, string> = {
   admin: "Администратор",
@@ -80,6 +81,11 @@ export function AppShell() {
 
             {isManagerSide && (
               <>
+                {(user?.role === "head" || user?.role === "admin") && (
+                  <NavLink to="/dashboard" className={navLinkClass}>
+                    Дашборд
+                  </NavLink>
+                )}
                 <NavLink to="/manager/requests" className={navLinkClass}>
                   Заявки
                 </NavLink>
@@ -106,6 +112,7 @@ export function AppShell() {
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm">
+          <NotificationsBell />
           <div className="text-right">
             <div className="font-medium">{user?.full_name}</div>
             <div className="text-slate-500 text-xs">

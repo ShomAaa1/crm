@@ -18,6 +18,7 @@ import { ProposalDetailsPage } from "@/pages/proposals/ProposalDetailsPage";
 import { ProposalsListPage } from "@/pages/proposals/ProposalsListPage";
 import { OrderDetailsPage } from "@/pages/orders/OrderDetailsPage";
 import { OrdersListPage } from "@/pages/orders/OrdersListPage";
+import { DashboardPage } from "@/pages/dashboard/DashboardPage";
 import { useAuthStore } from "@/store/auth";
 
 export default function App() {
@@ -92,6 +93,16 @@ export default function App() {
         {/* Заказы */}
         <Route path="orders" element={<OrdersListPage />} />
         <Route path="orders/:id" element={<OrderDetailsPage />} />
+
+        {/* Дашборд — head/admin */}
+        <Route
+          path="dashboard"
+          element={
+            <ProtectedRoute roles={["head", "admin"]}>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Управление каталогом — manager/head/admin */}
         <Route

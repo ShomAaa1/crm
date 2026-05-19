@@ -220,3 +220,41 @@ export interface OrderDetail extends OrderListItem {
   payment_terms: string | null;
   items: OrderItem[];
 }
+
+// === Уведомления ===
+
+export type NotificationType = "info" | "warning" | "task" | "system";
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string | null;
+  is_read: boolean;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface NotificationSummary {
+  items: NotificationItem[];
+  unread_count: number;
+}
+
+// === Дашборд ===
+
+export interface CounterItem {
+  label: string;
+  value: number;
+}
+
+export interface DashboardSummary {
+  requests_by_status: CounterItem[];
+  proposals_by_status: CounterItem[];
+  orders_by_status: CounterItem[];
+  revenue_30d: string;
+  cp_conversion: number;
+  total_clients: number;
+  total_managers: number;
+}
