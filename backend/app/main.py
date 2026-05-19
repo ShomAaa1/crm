@@ -8,7 +8,16 @@ from sqlalchemy import text
 from app.config import settings
 from app.database import engine
 from app.middleware.problem import register_exception_handlers
-from app.routers import auth, cart, categories, health, parts, requests, users
+from app.routers import (
+    auth,
+    cart,
+    categories,
+    health,
+    parts,
+    proposals,
+    requests,
+    users,
+)
 from app.utils.redis import get_redis
 
 logging.basicConfig(level=settings.log_level)
@@ -66,3 +75,4 @@ app.include_router(categories.router, prefix=API_V1)
 app.include_router(parts.router, prefix=API_V1)
 app.include_router(cart.router, prefix=API_V1)
 app.include_router(requests.router, prefix=API_V1)
+app.include_router(proposals.router, prefix=API_V1)
