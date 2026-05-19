@@ -141,3 +141,40 @@ export interface RequestListItem {
 export interface RequestDetail extends RequestListItem {
   items: RequestItem[];
 }
+
+// === Коммерческие предложения ===
+
+export type CPStatus = "draft" | "sent" | "accepted" | "rejected" | "expired";
+
+export interface CPItem {
+  id: string;
+  part_id: string | null;
+  article: string | null;
+  name: string;
+  quantity: number;
+  unit_price: string;
+  discount_percent: string;
+  total_price: string;
+}
+
+export interface CPListItem {
+  id: string;
+  cp_number: string;
+  request_id: string;
+  request_number: string | null;
+  client_company: string | null;
+  manager_id: string;
+  manager_name: string | null;
+  status: CPStatus;
+  valid_until: string | null;
+  total_amount: string | null;
+  version: number;
+  created_at: string;
+  sent_at: string | null;
+}
+
+export interface CPDetail extends CPListItem {
+  payment_terms: string | null;
+  delivery_terms: string | null;
+  items: CPItem[];
+}

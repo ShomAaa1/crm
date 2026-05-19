@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   cancelRequest,
   changeStatus,
@@ -8,9 +8,14 @@ import {
   STATUS_LABEL,
   takeRequest,
 } from "@/api/requests";
+import {
+  createFromRequest,
+  getProposalByRequest,
+  CP_STATUS_LABEL,
+} from "@/api/proposals";
 import { extractError } from "@/api/client";
 import { useAuthStore } from "@/store/auth";
-import type { RequestDetail, RequestStatus } from "@/types";
+import type { CPDetail, RequestDetail, RequestStatus } from "@/types";
 
 // Допустимые переходы — должны совпадать с ALLOWED_TRANSITIONS на бэкенде
 const ALLOWED: Record<RequestStatus, RequestStatus[]> = {
@@ -28,8 +33,10 @@ const ALLOWED: Record<RequestStatus, RequestStatus[]> = {
 export function RequestDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
 
   const [data, setData] = useState<RequestDetail | null>(null);
+  const [proposal, setProposal] = useState<CPDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -41,6 +48,13 @@ export function RequestDetailsPage() {
     try {
       const r = await getRequest(id);
       setData(r);
+      // Подгружаем связанное КП (если есть и доступно)
+      try {
+        const cp = await getProposalByRequest(id);
+        setProposal(cp);
+      } catch {
+        setProposal(null);
+      }
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -184,6 +198,41 @@ export function RequestDetailsPage() {
         </table>
       </div>
 
+      {/* Связанное КП */}
+      {proposal && (
+        <div className="card p-4 flex items-center justify-between bg-purple-50/50 border-purple-200">
+          <div>
+            <div className="text-sm text-slate-600 mb-1">
+              По этой заявке создано КП
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/proposals/${proposal.id}`}
+                className="font-mono text-brand-700 hover:underline"
+              >
+                {proposal.cp_number}
+                {proposal.version > 1 && ` (v${proposal.version})`}
+              </Link>
+              <span className="text-xs text-slate-500">·</span>
+              <span className="text-sm">
+                {CP_STATUS_LABEL[proposal.status]}
+              </span>
+              {proposal.total_amount && (
+                <>
+                  <span className="text-xs text-slate-500">·</span>
+                  <span className="text-sm font-medium">
+                    {proposal.total_amount} ₽
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+          <Link to={`/proposals/${proposal.id}`} className="btn-secondary">
+            Открыть КП →
+          </Link>
+        </div>
+      )}
+
       <div className="card p-4 flex flex-wrap gap-2">
         {/* Действия клиента */}
         {isClient && data.status === "new" && (
@@ -206,6 +255,30 @@ export function RequestDetailsPage() {
             Взять в работу
           </button>
         )}
+
+        {/* Создать КП — для in_progress / revision_needed, если КП ещё нет */}
+        {isManagerSide &&
+          (data.status === "in_progress" || data.status === "revision_needed") &&
+          !proposal && (
+            <button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  const cp = await createFromRequest(data.id);
+                  navigate(`/proposals/${cp.id}`);
+                } catch (err) {
+                  setError(extractError(err));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="btn-primary"
+            >
+              Сформировать КП
+            </button>
+          )}
 
         {isManagerSide &&
           ALLOWED[data.status].length > 0 &&

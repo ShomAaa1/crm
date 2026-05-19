@@ -237,6 +237,19 @@ async def create_from_request(
     return await _build_detail(db, cp.id)
 
 
+@router.get("/by-request/{request_id}", response_model=CPDetail | None)
+async def get_by_request(
+    request_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CPDetail | None:
+    cp = await svc.get_proposal_by_request(db, request_id)
+    if cp is None:
+        return None
+    await _check_access(db, user, cp.id)
+    return await _build_detail(db, cp.id)
+
+
 @router.get("/{cp_id}", response_model=CPDetail)
 async def get_proposal(
     cp_id: UUID,

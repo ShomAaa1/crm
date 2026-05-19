@@ -14,6 +14,8 @@ import { CartPage } from "@/pages/cart/CartPage";
 import { MyRequestsPage } from "@/pages/requests/MyRequestsPage";
 import { RequestDetailsPage } from "@/pages/requests/RequestDetailsPage";
 import { ManagerRequestsPage } from "@/pages/manager/RequestsPage";
+import { ProposalDetailsPage } from "@/pages/proposals/ProposalDetailsPage";
+import { ProposalsListPage } from "@/pages/proposals/ProposalsListPage";
 import { useAuthStore } from "@/store/auth";
 
 export default function App() {
@@ -80,6 +82,10 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Коммерческие предложения */}
+        <Route path="proposals" element={<ProposalsListPage />} />
+        <Route path="proposals/:id" element={<ProposalDetailsPage />} />
 
         {/* Управление каталогом — manager/head/admin */}
         <Route
