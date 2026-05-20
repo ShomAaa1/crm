@@ -23,13 +23,6 @@ class Settings(BaseSettings):
     env: Literal["development", "staging", "production"] = Field(default="development")
     log_level: str = Field(default="INFO")
 
-    smtp_host: str = Field(default="")
-    smtp_port: int = Field(default=587)
-    smtp_user: str = Field(default="")
-    smtp_password: str = Field(default="")
-    smtp_from: str = Field(default="noreply@autodetail.local")
-    smtp_use_tls: bool = Field(default=True)
-
     @property
     def cors_origins_list(self) -> list[str]:
         return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
