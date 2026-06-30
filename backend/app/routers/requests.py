@@ -16,8 +16,11 @@ from app.models import Client, Manager, User
 from app.models.enums import RequestStatus, UserRole
 from app.schemas.common import Page
 from app.schemas.request import (
+    AssignManagerIn,
+    ClientFinance,
     RequestCreate,
     RequestDetail,
+    RequestForClientCreate,
     RequestItemOut,
     RequestListItem,
     StatusChangeIn,
@@ -89,6 +92,75 @@ async def create_request(
         entity_type="request",
         entity_id=new_request.id,
         details={"request_number": new_request.request_number},
+        ip_address=_ip(request),
+    )
+    await db.commit()
+    await db.refresh(new_request)
+    return await _build_detail(db, user, new_request.id)
+
+
+@router.post(
+    "/for-client",
+    response_model=RequestDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_request_for_client(
+    payload: RequestForClientCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(manager_or_above),
+) -> RequestDetail:
+    """Оформление заявки менеджером от имени клиента (on behalf of).
+
+    Менеджер действует под своей ролью; заявка лишь ссылается на клиента
+    (client_id) и закрепляется за создавшим её менеджером (manager_id).
+    Факт оформления фиксируется в журнале аудита.
+    """
+    manager = (
+        await db.execute(select(Manager).where(Manager.user_id == user.id))
+    ).scalar_one_or_none()
+    if manager is None:
+        raise ProblemException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            title="Bad Request",
+            detail="Оформить заявку от имени клиента может только менеджер",
+        )
+
+    client = (
+        await db.execute(select(Client).where(Client.id == payload.client_id))
+    ).scalar_one_or_none()
+    if client is None:
+        raise ProblemException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Not Found",
+            detail="Клиент не найден",
+        )
+
+    try:
+        new_request = await svc.create_for_client(
+            db,
+            client,
+            manager,
+            [it.model_dump() for it in payload.items],
+            payload.comment,
+        )
+    except ValueError as e:
+        raise ProblemException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            title="Bad Request",
+            detail=str(e),
+        ) from e
+
+    await log_action(
+        db,
+        user_id=user.id,
+        action="request.create_for_client",
+        entity_type="request",
+        entity_id=new_request.id,
+        details={
+            "request_number": new_request.request_number,
+            "client_id": str(client.id),
+        },
         ip_address=_ip(request),
     )
     await db.commit()
@@ -182,6 +254,31 @@ async def _build_detail(
         ).scalar_one_or_none()
         manager_name = mgr_row
 
+    # Реквизиты клиента + основной контакт (телефон/email) для карточки.
+    # Только менеджерская сторона видит финансы клиента — клиенту не показываем
+    # его же кредитный лимит/задолженность в карточке заявки.
+    client_finance: ClientFinance | None = None
+    if client is not None and user.role != UserRole.CLIENT:
+        from app.models.client import ClientContact
+
+        primary_contact = (
+            await db.execute(
+                select(ClientContact)
+                .where(ClientContact.client_id == client.id)
+                .order_by(ClientContact.is_primary.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        client_finance = ClientFinance(
+            inn=client.inn,
+            kpp=client.kpp,
+            ogrn=client.ogrn,
+            credit_limit=client.credit_limit,
+            debt=client.debt,
+            phone=primary_contact.phone if primary_contact else None,
+            email=primary_contact.email if primary_contact else None,
+        )
+
     from datetime import datetime, timezone
 
     sla_overdue = bool(
@@ -207,6 +304,7 @@ async def _build_detail(
         closed_at=r.closed_at,
         sla_overdue=sla_overdue,
         items=items,
+        client=client_finance,
     )
 
 
@@ -259,6 +357,64 @@ async def take_request(
         entity_type="request",
         entity_id=r.id,
         details={"request_number": r.request_number},
+        ip_address=_ip(request),
+    )
+    await db.commit()
+    return await _build_detail(db, user, request_id)
+
+
+head_or_admin = require_role(UserRole.HEAD, UserRole.ADMIN)
+
+
+@router.post("/{request_id}/assign", response_model=RequestDetail)
+async def assign_request(
+    request_id: UUID,
+    payload: AssignManagerIn,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(head_or_admin),
+) -> RequestDetail:
+    """UC-11 / ФТ-11-02 — назначение менеджера руководителем."""
+    r = await svc.get_request(db, request_id)
+    if r is None:
+        raise ProblemException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Not Found",
+            detail="Заявка не найдена",
+        )
+
+    manager = (
+        await db.execute(select(Manager).where(Manager.id == payload.manager_id))
+    ).scalar_one_or_none()
+    if manager is None:
+        raise ProblemException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Not Found",
+            detail="Менеджер не найден",
+        )
+
+    previous_manager_id = r.manager_id
+    try:
+        await svc.assign_manager(db, r, manager, reason=payload.reason)
+    except ValueError as e:
+        raise ProblemException(
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conflict",
+            detail=str(e),
+        ) from e
+
+    await log_action(
+        db,
+        user_id=user.id,
+        action="request.assign",
+        entity_type="request",
+        entity_id=r.id,
+        details={
+            "request_number": r.request_number,
+            "from_manager_id": str(previous_manager_id) if previous_manager_id else None,
+            "to_manager_id": str(manager.id),
+            "reason": payload.reason,
+        },
         ip_address=_ip(request),
     )
     await db.commit()

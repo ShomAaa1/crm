@@ -48,11 +48,11 @@ services:
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://localhost}
       ENV: ${ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+    expose:
+      - "8000"
     volumes:
       - ./backend:/app
     healthcheck:
@@ -62,19 +62,21 @@ services:
       retries: 10
       start_period: 30s
 
-  frontend:
-    build: ./frontend
-    container_name: autodetail_frontend
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: autodetail_nginx
     restart: unless-stopped
     depends_on:
-      - backend
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+      backend:
+        condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-5173}:5173"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTP_PORT:-80}:80"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
 
 volumes:
   pg_data:

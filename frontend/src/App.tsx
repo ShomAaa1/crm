@@ -14,11 +14,14 @@ import { CartPage } from "@/pages/cart/CartPage";
 import { MyRequestsPage } from "@/pages/requests/MyRequestsPage";
 import { RequestDetailsPage } from "@/pages/requests/RequestDetailsPage";
 import { ManagerRequestsPage } from "@/pages/manager/RequestsPage";
+import { CreateRequestForClientPage } from "@/pages/manager/CreateRequestForClientPage";
 import { ProposalDetailsPage } from "@/pages/proposals/ProposalDetailsPage";
 import { ProposalsListPage } from "@/pages/proposals/ProposalsListPage";
 import { OrderDetailsPage } from "@/pages/orders/OrderDetailsPage";
 import { OrdersListPage } from "@/pages/orders/OrdersListPage";
 import { DashboardPage } from "@/pages/dashboard/DashboardPage";
+import { TasksPage } from "@/pages/tasks/TasksPage";
+import { ClientDetailsPage } from "@/pages/clients/ClientDetailsPage";
 import { useAuthStore } from "@/store/auth";
 
 export default function App() {
@@ -85,6 +88,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="manager/requests/new"
+          element={
+            <ProtectedRoute roles={["manager", "head", "admin"]}>
+              <CreateRequestForClientPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Коммерческие предложения */}
         <Route path="proposals" element={<ProposalsListPage />} />
@@ -94,14 +105,30 @@ export default function App() {
         <Route path="orders" element={<OrdersListPage />} />
         <Route path="orders/:id" element={<OrderDetailsPage />} />
 
-        {/* Дашборд — head/admin */}
+        {/* Дашборд — только head (UC-09) */}
         <Route
           path="dashboard"
           element={
-            <ProtectedRoute roles={["head", "admin"]}>
+            <ProtectedRoute roles={["head"]}>
               <DashboardPage />
             </ProtectedRoute>
           }
+        />
+
+        {/* Задачи (корректирующие действия) — UC-10 */}
+        <Route
+          path="tasks"
+          element={
+            <ProtectedRoute roles={["manager", "head", "admin"]}>
+              <TasksPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Карточка клиента + история взаимодействия (БТ-7, ФТ-14-07) */}
+        <Route
+          path="clients/:id"
+          element={<ClientDetailsPage />}
         />
 
         {/* Управление каталогом — manager/head/admin */}

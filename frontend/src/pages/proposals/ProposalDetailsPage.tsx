@@ -5,6 +5,7 @@ import {
   createFromRequest,
   CP_STATUS_COLOR,
   CP_STATUS_LABEL,
+  downloadProposalPdf,
   getProposal,
   rejectProposal,
   requestRevision,
@@ -13,9 +14,10 @@ import {
   type CPItemUpdate,
 } from "@/api/proposals";
 import { getOrderByCp, ORDER_STATUS_LABEL } from "@/api/orders";
+import { listParts } from "@/api/catalog";
 import { extractError } from "@/api/client";
 import { useAuthStore } from "@/store/auth";
-import type { CPDetail, OrderDetail } from "@/types";
+import type { CPDetail, OrderDetail, Part } from "@/types";
 
 export function ProposalDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +34,11 @@ export function ProposalDetailsPage() {
   const [removed, setRemoved] = useState<Set<string>>(new Set());
   const [paymentTerms, setPaymentTerms] = useState("");
   const [deliveryTerms, setDeliveryTerms] = useState("");
+
+  // Добавление новой позиции в КП (ФТ-11)
+  const [addSearch, setAddSearch] = useState("");
+  const [addResults, setAddResults] = useState<Part[]>([]);
+  const [addSearching, setAddSearching] = useState(false);
 
   async function load() {
     if (!id) return;
@@ -113,6 +120,47 @@ export function ProposalDetailsPage() {
     }
   }
 
+  async function doAddSearch() {
+    setAddSearching(true);
+    setError(null);
+    try {
+      const page = await listParts({
+        search: addSearch.trim() || undefined,
+        is_active: true,
+        limit: 10,
+      });
+      setAddResults(page.items);
+    } catch (err) {
+      setError(extractError(err));
+    } finally {
+      setAddSearching(false);
+    }
+  }
+
+  async function addPosition(partId: string) {
+    if (!data) return;
+    setBusy(true);
+    setError(null);
+    try {
+      // Сохраняем текущие правки черновика вместе с новой позицией,
+      // цена подставляется на бэкенде из каталога (snapshot).
+      const updated = await updateProposal(data.id, {
+        items: draft.filter((d) => !removed.has(d.id)),
+        items_to_remove: removed.size > 0 ? Array.from(removed) : undefined,
+        items_to_add: [{ part_id: partId, quantity: 1 }],
+        payment_terms: paymentTerms || null,
+        delivery_terms: deliveryTerms || null,
+      });
+      applyData(updated);
+      setAddResults([]);
+      setAddSearch("");
+    } catch (err) {
+      setError(extractError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function action(fn: () => Promise<CPDetail>) {
     setBusy(true);
     setError(null);
@@ -166,12 +214,21 @@ export function ProposalDetailsPage() {
             )}
           </div>
         </div>
-        <Link
-          to={isClient ? "/proposals" : "/manager/proposals"}
-          className="btn-secondary"
-        >
-          ← К списку
-        </Link>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => downloadProposalPdf(data.id, data.cp_number)}
+            className="btn-secondary"
+          >
+            📄 Скачать PDF
+          </button>
+          <Link
+            to={isClient ? "/proposals" : "/manager/proposals"}
+            className="btn-secondary"
+          >
+            ← К списку
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -359,6 +416,54 @@ export function ProposalDetailsPage() {
           </tbody>
         </table>
       </div>
+
+      {isEditable && (
+        <div className="card p-4 space-y-3">
+          <div className="label">Добавить позицию в КП</div>
+          <div className="flex gap-2">
+            <input
+              value={addSearch}
+              onChange={(e) => setAddSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") doAddSearch();
+              }}
+              placeholder="Поиск по артикулу или названию"
+              className="input flex-1"
+            />
+            <button
+              onClick={doAddSearch}
+              disabled={addSearching}
+              className="btn-secondary"
+            >
+              {addSearching ? "Поиск…" : "Найти"}
+            </button>
+          </div>
+          {addResults.length > 0 && (
+            <div className="border border-slate-200 rounded divide-y max-h-56 overflow-auto">
+              {addResults.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between px-3 py-2 text-sm"
+                >
+                  <div>
+                    <div className="font-medium">{p.name}</div>
+                    <div className="text-xs text-slate-500">
+                      {p.article} · {p.price} ₽
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => addPosition(p.id)}
+                    disabled={busy}
+                    className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-xs disabled:opacity-50"
+                  >
+                    + Добавить
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="card p-4">

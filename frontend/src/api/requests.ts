@@ -25,6 +25,20 @@ export async function createRequest(comment: string | null): Promise<RequestDeta
   return data;
 }
 
+export interface RequestForClientItem {
+  part_id: string;
+  quantity: number;
+}
+
+export async function createRequestForClient(payload: {
+  client_id: string;
+  items: RequestForClientItem[];
+  comment: string | null;
+}): Promise<RequestDetail> {
+  const { data } = await api.post<RequestDetail>("/requests/for-client", payload);
+  return data;
+}
+
 export async function takeRequest(id: string): Promise<RequestDetail> {
   const { data } = await api.post<RequestDetail>(`/requests/${id}/take`);
   return data;
@@ -44,6 +58,18 @@ export async function changeStatus(
 
 export async function cancelRequest(id: string): Promise<RequestDetail> {
   const { data } = await api.post<RequestDetail>(`/requests/${id}/cancel`);
+  return data;
+}
+
+export async function assignRequest(
+  id: string,
+  manager_id: string,
+  reason?: string,
+): Promise<RequestDetail> {
+  const { data } = await api.post<RequestDetail>(`/requests/${id}/assign`, {
+    manager_id,
+    reason,
+  });
   return data;
 }
 

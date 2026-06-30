@@ -17,6 +17,24 @@ class RequestCreate(BaseModel):
     comment: str | None = Field(default=None, max_length=2000)
 
 
+class RequestItemIn(BaseModel):
+    """Позиция заявки при оформлении менеджером от имени клиента."""
+
+    part_id: UUID
+    quantity: int = Field(ge=1, le=100000)
+
+
+class RequestForClientCreate(BaseModel):
+    """Оформление заявки менеджером от имени клиента (on behalf of).
+
+    Позиции передаются явно — корзина клиента не используется.
+    """
+
+    client_id: UUID
+    items: list[RequestItemIn] = Field(min_length=1)
+    comment: str | None = Field(default=None, max_length=2000)
+
+
 class RequestItemOut(BaseModel):
     id: UUID
     part_id: UUID | None = None
@@ -46,10 +64,26 @@ class RequestListItem(BaseModel):
     sla_overdue: bool = False
 
 
+class ClientFinance(BaseModel):
+    inn: str | None = None
+    kpp: str | None = None
+    ogrn: str | None = None
+    credit_limit: Decimal = Decimal("0")
+    debt: Decimal = Decimal("0")
+    phone: str | None = None
+    email: str | None = None
+
+
 class RequestDetail(RequestListItem):
     items: list[RequestItemOut]
+    client: ClientFinance | None = None
 
 
 class StatusChangeIn(BaseModel):
     status: RequestStatus
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class AssignManagerIn(BaseModel):
+    manager_id: UUID
     reason: str | None = Field(default=None, max_length=500)

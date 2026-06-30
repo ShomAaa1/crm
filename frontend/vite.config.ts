@@ -12,6 +12,12 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
+    // В Docker на macOS/Windows нативный file-watcher не пробрасывается через
+    // смонтированный том, поэтому HMR не видит правок. Polling это исправляет.
+    watch: {
+      usePolling: true,
+      interval: 300,
+    },
     proxy: {
       "/api": {
         target: process.env.VITE_API_PROXY ?? "http://backend:8000",

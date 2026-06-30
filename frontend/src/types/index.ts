@@ -138,8 +138,19 @@ export interface RequestListItem {
   sla_overdue: boolean;
 }
 
+export interface ClientFinance {
+  inn: string | null;
+  kpp: string | null;
+  ogrn: string | null;
+  credit_limit: string;
+  debt: string;
+  phone: string | null;
+  email: string | null;
+}
+
 export interface RequestDetail extends RequestListItem {
   items: RequestItem[];
+  client: ClientFinance | null;
 }
 
 // === Коммерческие предложения ===
@@ -249,12 +260,61 @@ export interface CounterItem {
   value: number;
 }
 
+export interface RevenuePoint {
+  date: string; // ISO YYYY-MM-DD
+  value: number;
+}
+
+export interface ConversionPoint {
+  month: string; // YYYY-MM
+  conversion: number;
+}
+
+export interface FunnelStage {
+  stage: string;
+  value: number;
+  conversion_pct: number | null;
+}
+
+export interface ManagerScore {
+  manager_name: string;
+  revenue: number;
+  deals_count: number;
+}
+
+export type PeriodPreset = "day" | "week" | "month" | "quarter" | "year";
+
 export interface DashboardSummary {
+  // Период
+  period_label: string;
+  period_days: number;
+  period_start: string; // YYYY-MM-DD
+  period_end: string; // YYYY-MM-DD
+
+  // Snapshot
   requests_by_status: CounterItem[];
   proposals_by_status: CounterItem[];
   orders_by_status: CounterItem[];
-  revenue_30d: string;
-  cp_conversion: number;
+  sales_funnel: FunnelStage[];
+  active_requests: number;
   total_clients: number;
   total_managers: number;
+
+  // За выбранный период
+  revenue_period: string;
+  deals_won: number;
+  avg_deal_size: string;
+  cp_conversion: number;
+  revenue_by_day: RevenuePoint[];
+  previous_revenue_by_day: RevenuePoint[];
+  manager_leaderboard: ManagerScore[];
+
+  // Дельты к эквивалентному предыдущему периоду
+  revenue_delta_pct: number | null;
+  conversion_delta_pct: number | null;
+  deals_won_delta_pct: number | null;
+  avg_deal_size_delta_pct: number | null;
+
+  // Тренд за последние 6 месяцев
+  conversion_by_month: ConversionPoint[];
 }

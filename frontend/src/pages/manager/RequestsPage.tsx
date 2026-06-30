@@ -50,13 +50,23 @@ export function ManagerRequestsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, statusFilter]);
 
+  // Менеджер: «Без менеджера / Мои» (видит только бесхозные и свои)
+  // Руководитель/админ: «Без менеджера / Все» (всё видит, «Мои» не имеет смысла)
   const scopes: Scope[] = canSeeAll
-    ? ["unassigned", "mine", "all"]
+    ? ["unassigned", "all"]
     : ["unassigned", "mine"];
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Заявки</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Заявки</h2>
+        <Link
+          to="/manager/requests/new"
+          className="px-3 py-1.5 rounded bg-brand-600 text-white text-sm hover:bg-brand-700"
+        >
+          + Оформить заявку для клиента
+        </Link>
+      </div>
 
       <div className="card p-3 flex flex-wrap items-end gap-3">
         <div className="flex gap-1">

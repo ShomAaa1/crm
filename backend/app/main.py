@@ -12,13 +12,17 @@ from app.routers import (
     auth,
     cart,
     categories,
+    clients,
     dashboard,
+    exports,
     health,
+    managers,
     notifications,
     orders,
     parts,
     proposals,
     requests,
+    tasks,
     users,
 )
 from app.utils.redis import get_redis
@@ -74,6 +78,10 @@ API_V1 = "/api/v1"
 app.include_router(health.router, prefix=API_V1)
 app.include_router(auth.router, prefix=API_V1)
 app.include_router(users.router, prefix=API_V1)
+app.include_router(managers.router, prefix=API_V1)
+app.include_router(tasks.router, prefix=API_V1)
+app.include_router(clients.router, prefix=API_V1)
+app.include_router(exports.router, prefix=API_V1)
 app.include_router(categories.router, prefix=API_V1)
 app.include_router(parts.router, prefix=API_V1)
 app.include_router(cart.router, prefix=API_V1)

@@ -81,7 +81,7 @@ export function AppShell() {
 
             {isManagerSide && (
               <>
-                {(user?.role === "head" || user?.role === "admin") && (
+                {user?.role === "head" && (
                   <NavLink to="/dashboard" className={navLinkClass}>
                     Дашборд
                   </NavLink>
@@ -94,6 +94,9 @@ export function AppShell() {
                 </NavLink>
                 <NavLink to="/orders" className={navLinkClass}>
                   Заказы
+                </NavLink>
+                <NavLink to="/tasks" className={navLinkClass}>
+                  Задачи
                 </NavLink>
                 <NavLink to="/admin/parts" className={navLinkClass}>
                   Запчасти

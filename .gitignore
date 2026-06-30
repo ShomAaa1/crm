@@ -38,3 +38,4 @@ backend/alembic/versions/__pycache__/
 
 # OS
 Thumbs.db
+*.tsbuildinfo

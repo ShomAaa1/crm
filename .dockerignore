@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+.git
+.idea
+venv
+backend
+*.log
+.env
+.env.local

@@ -125,6 +125,79 @@ async def create_from_cart(
     return request
 
 
+# --- Создание заявки менеджером от имени клиента ------------------------
+
+async def create_for_client(
+    db: AsyncSession,
+    client: Client,
+    manager: Manager,
+    items: list[dict],
+    comment: str | None,
+) -> Request:
+    """Оформление заявки менеджером от имени клиента (on behalf of).
+
+    В отличие от create_from_cart позиции передаются явно (список
+    {"part_id": UUID, "quantity": int}), корзина клиента не используется.
+    Заявка сразу закрепляется за создавшим её менеджером и переводится
+    в статус IN_PROGRESS — он же ведёт её дальше.
+    """
+    if not items:
+        raise ValueError("Не указаны позиции заявки")
+
+    part_ids = [it["part_id"] for it in items]
+    parts = {
+        p.id: p
+        for p in (
+            await db.execute(select(Part).where(Part.id.in_(part_ids)))
+        ).scalars().all()
+    }
+    missing = [str(pid) for pid in part_ids if pid not in parts]
+    if missing:
+        raise ValueError(f"Позиции не найдены: {', '.join(missing)}")
+
+    number = await _next_request_number(db)
+    now = datetime.now(timezone.utc)
+
+    request = Request(
+        request_number=number,
+        client_id=client.id,
+        manager_id=manager.id,
+        status=RequestStatus.IN_PROGRESS,
+        comment=comment,
+        taken_at=now,
+        sla_deadline=now + timedelta(hours=SLA_HOURS_FOR_NEW),
+    )
+    db.add(request)
+    await db.flush()
+
+    for it in items:
+        part = parts[it["part_id"]]
+        db.add(
+            RequestItem(
+                request_id=request.id,
+                part_id=part.id,
+                description=f"{part.article} — {part.name}",
+                quantity=it["quantity"],
+                price_at_moment=part.price,
+            )
+        )
+    await db.flush()
+
+    # Уведомление клиенту: для него оформлена заявка (прозрачность on-behalf)
+    if client.user_id:
+        await notif_svc.create(
+            db,
+            user_id=client.user_id,
+            title=f"Для вас оформлена заявка {request.request_number}",
+            message="Менеджер оформил заявку от вашего имени.",
+            n_type=NotificationType.INFO,
+            related_entity_type="request",
+            related_entity_id=request.id,
+        )
+
+    return request
+
+
 # --- Список заявок с агрегатами ----------------------------------------
 
 async def list_for_user(
@@ -176,7 +249,14 @@ async def list_for_user(
                     Request.manager_id.is_(None),
                 )
             )
-    # head/admin — без ограничений
+    else:
+        # head/admin — видят все заявки, но scope-фильтры тоже применяются
+        if only_unassigned:
+            q = q.where(Request.manager_id.is_(None))
+        elif only_mine:
+            # «Мои» для head/admin не имеет смысла — у них нет своих заявок
+            # как у менеджера. Возвращаем пустой набор, чтобы UI не врал.
+            q = q.where(Request.id == None)  # noqa: E711
 
     if status is not None:
         q = q.where(Request.status == status)
@@ -283,6 +363,78 @@ async def take_to_work(
             related_entity_type="request",
             related_entity_id=request.id,
         )
+
+    return request
+
+
+async def assign_manager(
+    db: AsyncSession,
+    request: Request,
+    manager: Manager,
+    reason: str | None = None,
+) -> Request:
+    """UC-11 / ФТ-11-02 — назначение/переназначение менеджера руководителем.
+
+    Допускает назначение в статусах, где заявка ещё не закрыта.
+    """
+    closed_statuses = (
+        RequestStatus.CLOSED_SUCCESS,
+        RequestStatus.CLOSED_FAIL,
+        RequestStatus.CANCELLED,
+    )
+    if request.status in closed_statuses:
+        raise ValueError("Нельзя назначать менеджера на закрытую заявку")
+    if not manager.is_available:
+        raise ValueError("Выбранный менеджер недоступен (отпуск/блокировка)")
+    if request.manager_id == manager.id:
+        raise ValueError("Этот менеджер уже назначен на заявку")
+
+    previous_manager_id = request.manager_id
+    request.manager_id = manager.id
+
+    # При первом назначении в статусе NEW сразу переводим в IN_PROGRESS,
+    # чтобы заявка перестала висеть в очереди "Без менеджера".
+    if request.status == RequestStatus.NEW:
+        request.status = RequestStatus.IN_PROGRESS
+        if request.taken_at is None:
+            request.taken_at = datetime.now(timezone.utc)
+
+    await db.flush()
+
+    # Уведомление новому менеджеру
+    suffix = f" Причина: {reason}" if reason else ""
+    await notif_svc.create(
+        db,
+        user_id=manager.user_id,
+        title=f"Вам назначена заявка {request.request_number}",
+        message=(
+            "Руководитель назначил вас ответственным за заявку." + suffix
+        ),
+        n_type=NotificationType.INFO,
+        related_entity_type="request",
+        related_entity_id=request.id,
+    )
+
+    # Уведомление предыдущему менеджеру (если было переназначение)
+    if previous_manager_id and previous_manager_id != manager.id:
+        prev_manager = (
+            await db.execute(
+                select(Manager).where(Manager.id == previous_manager_id)
+            )
+        ).scalar_one_or_none()
+        if prev_manager:
+            await notif_svc.create(
+                db,
+                user_id=prev_manager.user_id,
+                title=f"Заявка {request.request_number} переназначена",
+                message=(
+                    f"Заявка передана другому менеджеру руководителем."
+                    + (f" Причина: {reason}" if reason else "")
+                ),
+                n_type=NotificationType.WARNING,
+                related_entity_type="request",
+                related_entity_id=request.id,
+            )
 
     return request
 

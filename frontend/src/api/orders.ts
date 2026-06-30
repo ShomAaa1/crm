@@ -67,7 +67,7 @@ export const ORDER_STATUS_COLOR: Record<OrderStatus, string> = {
 export const ORDER_ALLOWED: Record<OrderStatus, OrderStatus[]> = {
   created: ["confirmed", "cancelled"],
   confirmed: ["shipped", "cancelled"],
-  shipped: ["delivered"],
+  shipped: ["delivered", "cancelled"],
   delivered: [],
   cancelled: [],
 };

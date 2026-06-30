@@ -150,6 +150,7 @@ async def update_draft(
     *,
     items_updates: list[dict] | None,
     items_to_remove: list[UUID] | None,
+    items_to_add: list[dict] | None = None,
     payment_terms: str | None,
     delivery_terms: str | None,
     valid_until: date | None,
@@ -182,6 +183,32 @@ async def update_draft(
             item.discount_percent = upd["discount_percent"]
             item.total_price = calc_line_total(
                 upd["quantity"], upd["unit_price"], upd["discount_percent"]
+            )
+        await db.flush()
+
+    if items_to_add:
+        for add in items_to_add:
+            part = (
+                await db.execute(select(Part).where(Part.id == add["part_id"]))
+            ).scalar_one_or_none()
+            if part is None:
+                raise ValueError(f"Запчасть не найдена: {add['part_id']}")
+            price = (
+                Decimal(add["unit_price"])
+                if add.get("unit_price") is not None
+                else Decimal(part.price)
+            )
+            disc = Decimal(add.get("discount_percent") or 0)
+            db.add(
+                CPItem(
+                    cp_id=cp.id,
+                    part_id=part.id,
+                    name=part.name,
+                    quantity=add["quantity"],
+                    unit_price=price,
+                    discount_percent=disc,
+                    total_price=calc_line_total(add["quantity"], price, disc),
+                )
             )
         await db.flush()
 

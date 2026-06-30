@@ -8,9 +8,17 @@ export interface CPItemUpdate {
   discount_percent: string;
 }
 
+export interface CPItemAddInput {
+  part_id: string;
+  quantity: number;
+  unit_price?: string;
+  discount_percent?: string;
+}
+
 export interface CPDraftUpdateInput {
   items?: CPItemUpdate[];
   items_to_remove?: string[];
+  items_to_add?: CPItemAddInput[];
   payment_terms?: string | null;
   delivery_terms?: string | null;
   valid_until?: string | null;
@@ -88,6 +96,24 @@ export const CP_STATUS_LABEL: Record<CPStatus, string> = {
   rejected: "Отклонено",
   expired: "Истекло",
 };
+
+export async function downloadProposalPdf(
+  id: string,
+  cpNumber: string,
+): Promise<void> {
+  const response = await api.get(`/proposals/${id}/pdf`, {
+    responseType: "blob",
+  });
+  const blob = new Blob([response.data], { type: "application/pdf" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `KP-${cpNumber}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
 
 export const CP_STATUS_COLOR: Record<CPStatus, string> = {
   draft: "bg-slate-100 text-slate-700",

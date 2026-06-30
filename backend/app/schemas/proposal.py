@@ -22,11 +22,25 @@ class CPItemUpdate(BaseModel):
     )
 
 
+class CPItemAdd(BaseModel):
+    """Добавление новой позиции в черновик КП (ФТ-11)."""
+
+    part_id: UUID
+    quantity: int = Field(ge=1, le=10000)
+    unit_price: Decimal | None = Field(
+        default=None, ge=0, max_digits=12, decimal_places=2
+    )
+    discount_percent: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100, max_digits=5, decimal_places=2
+    )
+
+
 class CPDraftUpdate(BaseModel):
     """Редактирование черновика КП: позиции + условия."""
 
     items: list[CPItemUpdate] | None = None
     items_to_remove: list[UUID] | None = None
+    items_to_add: list[CPItemAdd] | None = None
     payment_terms: str | None = Field(default=None, max_length=2000)
     delivery_terms: str | None = Field(default=None, max_length=2000)
     valid_until: date | None = None

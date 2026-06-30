@@ -5,14 +5,17 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user, require_role
 from app.middleware.problem import ProblemException
-from app.models import Client, Manager, Part, User
+from app.models import Client, CommercialProposal, Manager, Part, Request as ReqModel, User
 from app.models.enums import CPStatus, UserRole
+from app.services.pdf import CPItemData, render_proposal_pdf
 from app.schemas.common import Page
 from app.schemas.proposal import (
     CPDetail,
@@ -260,6 +263,90 @@ async def get_proposal(
     return await _build_detail(db, cp_id)
 
 
+@router.get("/{cp_id}/pdf")
+async def get_proposal_pdf(
+    cp_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Response:
+    """ФТ-06-03 — генерация коммерческого предложения в формате PDF."""
+    await _check_access(db, user, cp_id)
+
+    cp = (
+        await db.execute(
+            select(CommercialProposal)
+            .options(selectinload(CommercialProposal.items))
+            .where(CommercialProposal.id == cp_id)
+        )
+    ).scalar_one_or_none()
+    if cp is None:
+        raise ProblemException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Not Found",
+            detail="Коммерческое предложение не найдено",
+        )
+
+    # Подгружаем связанные сущности для шапки и подвала
+    request = (
+        await db.execute(select(ReqModel).where(ReqModel.id == cp.request_id))
+    ).scalar_one_or_none()
+    client = None
+    if request is not None:
+        client = (
+            await db.execute(select(Client).where(Client.id == request.client_id))
+        ).scalar_one_or_none()
+    manager_name: str | None = None
+    if cp.manager_id:
+        manager_name = (
+            await db.execute(
+                select(User.full_name)
+                .join(Manager, Manager.user_id == User.id)
+                .where(Manager.id == cp.manager_id)
+            )
+        ).scalar_one_or_none()
+
+    # Сортируем позиции стабильно (по id)
+    sorted_items = sorted(cp.items, key=lambda i: str(i.id))
+    pdf_items = [
+        CPItemData(
+            index=idx,
+            article=None,  # в модели CPItem нет артикула, есть только name
+            name=it.name,
+            quantity=it.quantity,
+            unit_price=it.unit_price,
+            discount_percent=it.discount_percent,
+            line_total=it.total_price,
+        )
+        for idx, it in enumerate(sorted_items, start=1)
+    ]
+
+    pdf_bytes = render_proposal_pdf(
+        cp_number=cp.cp_number,
+        version=cp.version,
+        created_at=cp.created_at.strftime("%d.%m.%Y %H:%M"),
+        valid_until=cp.valid_until.strftime("%d.%m.%Y") if cp.valid_until else None,
+        seller_company="ООО «АвтоДеталь»",
+        seller_inn="7700000000",
+        client_company=client.company_name if client else "—",
+        client_inn=client.inn if client else "—",
+        client_kpp=client.kpp if client else None,
+        items=pdf_items,
+        total_amount=cp.total_amount or 0,
+        payment_terms=cp.payment_terms,
+        delivery_terms=cp.delivery_terms,
+        manager_name=manager_name,
+    )
+
+    filename = f"KP-{cp.cp_number}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"',
+        },
+    )
+
+
 @router.patch("/{cp_id}", response_model=CPDetail)
 async def update_proposal(
     cp_id: UUID,
@@ -281,11 +368,17 @@ async def update_proposal(
         items_payload = (
             [u.model_dump() for u in payload.items] if payload.items else None
         )
+        add_payload = (
+            [a.model_dump() for a in payload.items_to_add]
+            if payload.items_to_add
+            else None
+        )
         await svc.update_draft(
             db,
             cp,
             items_updates=items_payload,
             items_to_remove=payload.items_to_remove,
+            items_to_add=add_payload,
             payment_terms=payload.payment_terms,
             delivery_terms=payload.delivery_terms,
             valid_until=payload.valid_until,

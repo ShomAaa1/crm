@@ -13,8 +13,10 @@ export function LoginPage() {
   const location = useLocation();
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
 
-  const [email, setEmail] = useState("admin@autodetail.ru");
-  const [password, setPassword] = useState("Admin123!");
+  // В режиме разработки поля предзаполняются для удобства тестирования.
+  // В production-сборке поля пустые — устраняется через import.meta.env.DEV.
+  const [email, setEmail] = useState(import.meta.env.DEV ? "admin@autodetail.ru" : "");
+  const [password, setPassword] = useState(import.meta.env.DEV ? "Admin123!" : "");
   const [error, setError] = useState<string | null>(null);
 
   if (user) {
@@ -83,15 +85,29 @@ export function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-xs text-slate-500">
-          <div className="font-medium mb-1">Демо-учётные записи:</div>
-          <ul className="space-y-0.5">
-            <li>admin@autodetail.ru / Admin123!</li>
-            <li>head@autodetail.ru / Head123!</li>
-            <li>manager1@autodetail.ru / Manager123!</li>
-            <li>client1@autodetail.ru / Client123!</li>
-          </ul>
-        </div>
+        {/*
+          Демонстрационные учётные записи показываются только в режиме
+          разработки. В production-сборке (npm run build) Vite вычистит
+          этот блок на этапе компиляции, поэтому реальные учётные данные
+          не попадут в итоговый bundle.
+        */}
+        {import.meta.env.DEV && (
+          <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <div className="font-semibold mb-1">
+              Демонстрационные учётные записи (режим разработки):
+            </div>
+            <ul className="space-y-0.5 font-mono">
+              <li>admin@autodetail.ru / Admin123!</li>
+              <li>head@autodetail.ru / Head123!</li>
+              <li>manager1@autodetail.ru / Manager123!</li>
+              <li>client1@autodetail.ru / Client123!</li>
+            </ul>
+            <p className="mt-2 italic text-[11px] text-amber-700">
+              Блок отображается только в dev-окружении и отсутствует в
+              production-сборке.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
